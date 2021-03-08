@@ -69,6 +69,8 @@ component datapath is
            o_newpixel : STD_LOGIC_VECTOR(7 downto 0));
 end component;
 
+signal reset_datapath : STD_LOGIC;
+signal dummy_reset : STD_LOGIC;
 signal r_max_load : STD_LOGIC;
 signal r_min_load : STD_LOGIC;
 signal r_ncols_load : STD_LOGIC;
@@ -91,7 +93,7 @@ signal cur_state, next_state : S;
 begin
     DATAPATH0 : datapath port map(
         i_clk => i_clk,
-        i_rst => i_rst,
+        i_rst => reset_datapath,
         i_data => i_data,
         o_addr => o_addr,
         r_max_load => r_max_load,
@@ -194,11 +196,12 @@ begin
         r_counter_load <= '0';
         ctrl1 <= '0';
         ctrl2 <= '0';
-        o_address <= "0000000000000000";
+        o_address <= (others => '0');
         o_en <= '0';
         o_we <= '0';
         o_done <= '0';
-        o_data <= "00000000";
+        o_data <= (others => '0');
+        dummy_reset <= '0';
         case cur_state is
             when S0 =>
                 ctrl1 <= '0';
@@ -207,37 +210,38 @@ begin
                 o_en <= '1';
                 o_we <= '0';
                 r_ncols_load <= '1';
-            when S2 =>
+            when S2 => -- load rows
                 o_address <= "0000000000000001";
                 o_en <= '1';
                 o_we <= '0';
                 r_nrows_load <= '1';
-            when S3 =>
+            when S3 => -- calculate num of cells
                 r_ncells_load <= '1';
-            when S4 =>
+            when S4 => -- find max and min
                 r_currpixel_load <= '1';
                 o_address <= o_addr;
                 o_en <= '1';
                 o_we <= '0';
-            when S5 =>
+            when S5 => -- min found
                 r_min_load <= '1';
-            when S6 =>
+            when S6 => -- max found
                 r_max_load <= '1';
-            when S7 =>
+            when S7 => -- counter++
                 r_counter_load <= '1';
                 ctrl1 <= '1';
-            when S8 =>
+            when S8 => -- reset counter
                 r_counter_load <= '1';
                 ctrl1 <= '0';
-            when S9 =>
+            when S9 => -- start equalization
+                r_counter_load <= '0';
                 r_currpixel_load <= '1';
                 ctrl2 <= '0';
                 o_address <= o_addr;
                 o_en <= '1';
                 o_we <= '0';
-            when S10 =>
+            when S10 => -- load on register_newpixel
                 r_newpixel_load <= '1';
-            when S11 =>
+            when S11 => -- write equalized pixel
                 ctrl1 <= '1';
                 ctrl2 <= '1';
                 r_counter_load <= '1';
@@ -245,14 +249,17 @@ begin
                 o_data <= o_newpixel;
                 o_en <= '1';
                 o_we <= '1';
-            when S12 => -- Serve?
-            when S13 =>
+            when S12 => -- waiting for counter update
+            when S13 => -- waiting for new start
                 o_done <= '1';
-            when S14 =>
+            when S14 => -- reset for new input
                 o_done <= '0';
                 ctrl1 <= '1';
+                dummy_reset <= '1';
         end case;
     end process;
+    
+    reset_datapath <= i_rst OR dummy_reset;
     
 end Behavioral;
 
@@ -297,12 +304,12 @@ signal o_r_newpixel : STD_LOGIC_VECTOR (7 downto 0);
 signal o_r_counter : STD_LOGIC_VECTOR (13 downto 0);
 signal rowsxcols : STD_LOGIC_VECTOR (13 downto 0);
 signal newcounter : STD_LOGIC_VECTOR (13 downto 0);
-signal shift_level : STD_LOGIC_VECTOR(2 downto 0);
+signal shift_level : STD_LOGIC_VECTOR(3 downto 0);
 signal delta_value : STD_LOGIC_VECTOR(7 downto 0);
-signal temp_pixel : STD_LOGIC_VECTOR(10 downto 0);
+signal temp_pixel : STD_LOGIC_VECTOR(12 downto 0);
 signal new_pixel_value : STD_LOGIC_VECTOR(7 downto 0);
 signal log2 : STD_LOGIC_VECTOR(3 downto 0);
-signal mux2 : STD_LOGIC_VECTOR(13 downto 0);
+signal mux2 : STD_LOGIC_VECTOR(15 downto 0);
 signal address_read : STD_LOGIC_VECTOR(15 downto 0);
 signal address_write : STD_LOGIC_VECTOR(15 downto 0);
 
