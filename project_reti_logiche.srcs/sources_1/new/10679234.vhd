@@ -203,8 +203,7 @@ begin
         o_data <= (others => '0');
         dummy_reset <= '0';
         case cur_state is
-            when S0 =>
-                ctrl1 <= '0';
+            when S0 => -- waiting for input
             when S1 => -- load columns
                 o_address <= "0000000000000000";
                 o_en <= '1';
@@ -304,12 +303,12 @@ signal o_r_newpixel : STD_LOGIC_VECTOR (7 downto 0);
 signal o_r_counter : STD_LOGIC_VECTOR (13 downto 0);
 signal rowsxcols : STD_LOGIC_VECTOR (13 downto 0);
 signal newcounter : STD_LOGIC_VECTOR (13 downto 0);
-signal shift_level : STD_LOGIC_VECTOR(3 downto 0);
+signal shift_level : STD_LOGIC_VECTOR(2 downto 0);
 signal delta_value : STD_LOGIC_VECTOR(7 downto 0);
-signal temp_pixel : STD_LOGIC_VECTOR(12 downto 0);
+signal temp_pixel : STD_LOGIC_VECTOR(10 downto 0);
 signal new_pixel_value : STD_LOGIC_VECTOR(7 downto 0);
 signal log2 : STD_LOGIC_VECTOR(3 downto 0);
-signal mux2 : STD_LOGIC_VECTOR(15 downto 0);
+signal mux2 : STD_LOGIC_VECTOR(13 downto 0);
 signal address_read : STD_LOGIC_VECTOR(15 downto 0);
 signal address_write : STD_LOGIC_VECTOR(15 downto 0);
 
@@ -365,17 +364,17 @@ begin
     newcounter <= std_logic_vector(unsigned(o_r_counter) + 1); 
     
     with ctrl1 select
-        mux2 <= "00000000000000" when '0',
+        mux2 <= (others => '0') when '0',
                  newcounter when '1',
                 "XXXXXXXXXXXXXXXX" when others;
            
     with ctrl2 select
-        o_addr <= address_read when '0', --verifica num bit when '0',
+        o_addr <= address_read when '0',
                   address_write when '1',
                   "XXXXXXXXXXXXXXXX" when others;       
                       
-    address_read <= std_logic_vector(("00" & unsigned(o_r_counter)) + 2); --verifica num bit
-    address_write <= std_logic_vector(("00" & unsigned(o_r_ncells)) + unsigned(address_read)); --verifica num bit
+    address_read <= std_logic_vector((unsigned(o_r_counter)) + 2); --verifica num bit
+    address_write <= std_logic_vector(((unsigned(o_r_ncells)) + unsigned(address_read))); --verifica num bit
     
     o_endcount <= '1' when (o_r_counter >= o_r_ncells) else '0'; 
     
@@ -414,28 +413,26 @@ begin
         end if;
     end process;
     
-    delta_value <= std_logic_vector(unsigned(o_r_max) + unsigned(o_r_min) + 1); 
+    delta_value <= std_logic_vector(unsigned(o_r_max) - unsigned(o_r_min) + 1); 
     
     process(delta_value)
     begin
-        if delta_value < "00000001" then
-            log2 <= "0000";
-        elsif delta_value < "00000010" then
-            log2 <= "0001";
-        elsif delta_value < "00000100" then
-            log2 <= "0010";
-        elsif delta_value < "00001000" then
-            log2 <= "0011";
-        elsif delta_value < "00010000" then
-            log2 <= "0100";
-        elsif delta_value < "00100000" then
-            log2 <= "0101";
-        elsif delta_value < "01000000" then
-            log2 <= "0110";
-        elsif delta_value < "10000000" then
-            log2 <= "0111";
+        if unsigned(delta_value) < 2 then
+            log2 <= "000";
+        elsif unsigned(delta_value) < 4 then
+            log2 <= "001";
+        elsif unsigned(delta_value) < 8 then
+            log2 <= "010";
+        elsif unsigned(delta_value) < 16 then
+            log2 <= "011";
+        elsif unsigned(delta_value) < 32 then
+            log2 <= "100";
+        elsif unsigned(delta_value) < 64 then
+            log2 <= "101";
+        elsif unsigned(delta_value) < 128 then
+            log2 <= "110";
         else
-            log2 <= "1000";
+            log2 <= "111";
         end if;
     end process;
 
@@ -445,10 +442,10 @@ begin
     
     process(temp_pixel)
         begin
-            if temp_pixel < "11111111" then
+            if unsigned(temp_pixel) < 255 then
                 new_pixel_value <= temp_pixel;
             else
-                new_pixel_value <= "11111111";
+                new_pixel_value <= (others => '1');
             end if;
     end process;
     
@@ -456,7 +453,7 @@ begin
     process(i_clk, i_rst)
     begin
         if(i_rst = '1') then
-            o_r_newpixel <= "00000000";
+            o_r_newpixel <= (others => '0');
         elsif i_clk'event and i_clk = '1' then
             if(r_newpixel_load = '1') then
                 o_r_newpixel <= new_pixel_value;
@@ -468,7 +465,7 @@ begin
     
     process(o_r_currpixel, o_r_min)
         begin
-            if o_r_currpixel < o_r_min then
+            if unsigned(o_r_currpixel) < unsigned(o_r_min) then
                 o_smallerthanmin <= '1';
             else
                 o_smallerthanmin <= '0';
@@ -477,7 +474,7 @@ begin
     
     process(o_r_currpixel, o_r_max)
         begin
-            if o_r_currpixel > o_r_max then
+            if unsigned(o_r_currpixel) > unsigned(o_r_max) then
                 o_greaterthanmax <= '1';
             else
                 o_greaterthanmax <= '0';
