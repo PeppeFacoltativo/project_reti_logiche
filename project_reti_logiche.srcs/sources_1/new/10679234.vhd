@@ -51,7 +51,6 @@ architecture Behavioral of project_reti_logiche is
 component datapath is
     Port ( i_clk : in std_logic;
            i_rst : in std_logic;
-           i_start : in std_logic;
            i_data : in std_logic_vector(7 downto 0);
            o_addr : out std_logic_vector(15 downto 0);
            r_max_load : in STD_LOGIC;
@@ -64,10 +63,10 @@ component datapath is
            r_counter_load : in STD_LOGIC;
            ctrl1 : in STD_LOGIC;
            ctrl2 : in STD_LOGIC;
-           ctrl3 : in STD_LOGIC;
            o_endcount : out STD_LOGIC;
            o_greaterthanmax : out STD_LOGIC;
-           o_smallerthanmin : out STD_LOGIC);
+           o_smallerthanmin : out STD_LOGIC;
+           o_newpixel : STD_LOGIC_VECTOR(7 downto 0));
 end component;
 
 signal r_max_load : STD_LOGIC;
@@ -80,36 +79,35 @@ signal r_newpixel_load : STD_LOGIC;
 signal r_counter_load : STD_LOGIC;
 signal ctrl1 : STD_LOGIC;
 signal ctrl2 : STD_LOGIC;
-signal ctrl3 : STD_LOGIC;
 signal o_endcount : STD_LOGIC;
 signal o_greaterthanmax : STD_LOGIC;
 signal o_smallerthanmin : STD_LOGIC;
 signal o_addr : STD_LOGIC_VECTOR(15 downto 0);
+signal o_newpixel : STD_LOGIC_VECTOR(15 downto 0);
 
 type S is (S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15);
 signal cur_state, next_state : S;
 
 begin
     DATAPATH0 : datapath port map(
-        i_clk,
-        i_rst,
-        i_start,
-        i_data,
-        o_addr,
-        r_max_load,
-        r_min_load,
-        r_ncols_load,
-        r_nrows_load,
-        r_ncells_load,
-        r_currpixel_load,
-        r_newpixel_load,
-        r_counter_load,
-        ctrl1,
-        ctrl2,
-        ctrl3,
-        o_endcount,
-        o_greaterthanmax,
-        o_smallerthanmin
+        i_clk => i_clk,
+        i_rst => i_rst,
+        i_data => i_data,
+        o_addr => o_addr,
+        r_max_load => r_max_load,
+        r_min_load => r_min_load,
+        r_ncols_load => r_ncols_load,
+        r_nrows_load => r_nrows_load,
+        r_ncells_load => r_ncells_load,
+        r_currpixel_load => r_currpixel_load,
+        r_newpixel_load => r_newpixel_load,
+        r_counter_load => r_counter_load,
+        ctrl1 => ctrl1,
+        ctrl2 => ctrl2,
+        o_endcount => o_endcount,
+        o_greaterthanmax => o_greaterthanmax,
+        o_smallerthanmin => o_smallerthanmin,
+        o_newpixel => o_newpixel
     );
     
     process(i_clk, i_rst)
@@ -169,7 +167,7 @@ begin
                 next_state <= S11;
             when S11 =>
                 next_state <= S12;
-            when S7 =>
+            when S12 =>
             if o_endcount = '1' then
                 next_state <= S13;
             else 
@@ -196,14 +194,11 @@ begin
         r_counter_load <= '0';
         ctrl1 <= '0';
         ctrl2 <= '0';
-        ctrl3 <= '0';
         o_address <= "0000000000000000";
-        o_addr <= "0000000000000000";
         o_en <= '0';
         o_we <= '0';
         o_done <= '0';
-        o_greaterthanmax <= '0';
-        o_smallerthanmin <= '0';
+        o_data <= "00000000";
         case cur_state is
             when S0 =>
                 ctrl1 <= '0';
@@ -230,23 +225,24 @@ begin
                 r_max_load <= '1';
             when S7 =>
                 r_counter_load <= '1';
-                ctrl2 <= '1';
+                ctrl1 <= '1';
             when S8 =>
                 r_counter_load <= '1';
-                ctrl2 <= '0';
+                ctrl1 <= '0';
             when S9 =>
                 r_currpixel_load <= '1';
-                ctrl3 <= '0';
+                ctrl2 <= '0';
                 o_address <= o_addr;
                 o_en <= '1';
                 o_we <= '0';
             when S10 =>
                 r_newpixel_load <= '1';
             when S11 =>
+                ctrl1 <= '1';
                 ctrl2 <= '1';
-                ctrl3 <= '1';
                 r_counter_load <= '1';
                 o_address <= o_addr;
+                o_data <= o_newpixel;
                 o_en <= '1';
                 o_we <= '1';
             when S12 => -- Serve?
@@ -261,87 +257,224 @@ begin
 end Behavioral;
 
 
-
+-- DATAPATH
 
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 
 entity datapath is
-    Port ( i_clk : in STD_LOGIC;
-           i_rst : in STD_LOGIC;
-           i_data : in STD_LOGIC_VECTOR (7 downto 0);
-           o_data : out STD_LOGIC_VECTOR (7 downto 0);
-           r1_load : in STD_LOGIC;
-           r2_load : in STD_LOGIC;
-           r3_load : in STD_LOGIC;
-           r2_sel : in STD_LOGIC;
-           r3_sel : in STD_LOGIC;
-           d_sel : in STD_LOGIC;
-           o_end : out STD_LOGIC);
+    Port ( i_clk : in std_logic;
+           i_rst : in std_logic;
+           i_data : in std_logic_vector(7 downto 0);
+           o_addr : out std_logic_vector(15 downto 0);
+           r_max_load : in STD_LOGIC;
+           r_min_load : in STD_LOGIC;
+           r_ncols_load : in STD_LOGIC;
+           r_nrows_load : in STD_LOGIC;
+           r_ncells_load : in STD_LOGIC;
+           r_currpixel_load : in STD_LOGIC;
+           r_newpixel_load : in STD_LOGIC;
+           r_counter_load : in STD_LOGIC;
+           ctrl1 : in STD_LOGIC;
+           ctrl2 : in STD_LOGIC;
+           o_endcount : out STD_LOGIC;
+           o_greaterthanmax : out STD_LOGIC;
+           o_smallerthanmin : out STD_LOGIC;
+           o_newpixel : out std_logic_vector(7 downto 0));
 end datapath;
 
 architecture Behavioral of datapath is
-signal o_reg1 : STD_LOGIC_VECTOR (7 downto 0);
-signal o_reg2 : STD_LOGIC_VECTOR (15 downto 0);
-signal sum : STD_LOGIC_VECTOR(15 downto 0);
-signal mux_reg2 : STD_LOGIC_VECTOR(15 downto 0);
-signal mux_reg3 : STD_LOGIC_VECTOR(7 downto 0);
-signal sub : STD_LOGIC_VECTOR(7 downto 0);
-signal o_reg3 : STD_LOGIC_VECTOR (7 downto 0);
-begin
+signal o_r_max : STD_LOGIC_VECTOR (7 downto 0);
+signal o_r_min : STD_LOGIC_VECTOR (7 downto 0);
+signal o_r_ncols : STD_LOGIC_VECTOR (6 downto 0);
+signal o_r_nrows : STD_LOGIC_VECTOR (6 downto 0);
+signal o_r_ncells : STD_LOGIC_VECTOR (13 downto 0);
+signal o_r_currpixel : STD_LOGIC_VECTOR (7 downto 0);
+signal o_r_newpixel : STD_LOGIC_VECTOR (7 downto 0);
+signal o_r_counter : STD_LOGIC_VECTOR (13 downto 0);
+signal rowsxcols : STD_LOGIC_VECTOR (13 downto 0);
+signal newcounter : STD_LOGIC_VECTOR (13 downto 0);
+signal shift_level : STD_LOGIC_VECTOR(2 downto 0);
+signal delta_value : STD_LOGIC_VECTOR(7 downto 0);
+signal temp_pixel : STD_LOGIC_VECTOR(10 downto 0);
+signal new_pixel_value : STD_LOGIC_VECTOR(7 downto 0);
+signal log2 : STD_LOGIC_VECTOR(3 downto 0);
+signal mux2 : STD_LOGIC_VECTOR(13 downto 0);
+signal address_read : STD_LOGIC_VECTOR(15 downto 0);
+signal address_write : STD_LOGIC_VECTOR(15 downto 0);
+
+--Parte 1
+
+begin    
     process(i_clk, i_rst)
     begin
         if(i_rst = '1') then
-            o_reg1 <= "00000000";
+            o_r_ncols <= (others => '0');
         elsif i_clk'event and i_clk = '1' then
-            if(r1_load = '1') then
-                o_reg1 <= i_data;
+            if(r_ncols_load = '1') then
+                 o_r_ncols <= i_data;
             end if;
         end if;
     end process;
     
-    sum <= ("00000000" & o_reg1) + o_reg2;
-    
-    with r2_sel select
-        mux_reg2 <= "0000000000000000" when '0',
-                    sum when '1',
-                    "XXXXXXXXXXXXXXXX" when others;
-    
     process(i_clk, i_rst)
     begin
         if(i_rst = '1') then
-            o_reg2 <= "0000000000000000";
+            o_r_nrows <= (others => '0');
         elsif i_clk'event and i_clk = '1' then
-            if(r2_load = '1') then
-                o_reg2 <= mux_reg2;
+            if(r_nrows_load = '1') then
+                 o_r_ncols <= i_data;
             end if;
         end if;
     end process;
     
-    with d_sel select
-        o_data <= o_reg2(7 downto 0) when '0',
-                  o_reg2(15 downto 8) when '1',
-                  "XXXXXXXX" when others;
+    rowsxcols <= std_logic_vector(unsigned(o_r_ncols) * unsigned(o_r_nrows));
     
-    with r3_sel select
-        mux_reg3 <= i_data when '0',
-                    sub when '1',
-                    "XXXXXXXX" when others;
     process(i_clk, i_rst)
     begin
         if(i_rst = '1') then
-            o_reg3 <= "00000000";
+            o_r_ncells <= (others => '0');
         elsif i_clk'event and i_clk = '1' then
-            if(r3_load = '1') then
-                o_reg3 <= mux_reg3;
+            if(r_ncells_load = '1') then
+                 o_r_ncells <= rowsxcols;
             end if;
         end if;
     end process;
     
-    sub <= o_reg3 - "00000001";
+    process(i_clk, i_rst)
+    begin
+        if(i_rst = '1') then
+            o_r_counter <= (others => '0');
+        elsif i_clk'event and i_clk = '1' then
+            if(r_counter_load = '1') then
+                 o_r_ncells <= mux2;
+            end if;
+        end if;
+    end process;
     
-    o_end <= '1' when (o_reg3 = "00000000") else '0';
+    newcounter <= std_logic_vector(unsigned(o_r_counter) + 1); 
+    
+    with ctrl1 select
+        mux2 <= "00000000000000" when '0',
+                 newcounter when '1',
+                "XXXXXXXXXXXXXXXX" when others;
+           
+    with ctrl2 select
+        o_addr <= address_read when '0', --verifica num bit when '0',
+                  address_write when '1',
+                  "XXXXXXXXXXXXXXXX" when others;       
+                      
+    address_read <= std_logic_vector(("00" & unsigned(o_r_counter)) + 2); --verifica num bit
+    address_write <= std_logic_vector(("00" & unsigned(o_r_ncells)) + unsigned(address_read)); --verifica num bit
+    
+    o_endcount <= '1' when (o_r_counter >= o_r_ncells) else '0'; 
+    
+    --Parte 2
+    
+    process(i_clk, i_rst)
+    begin
+        if(i_rst = '1') then
+            o_r_max <= (others => '0');
+        elsif i_clk'event and i_clk = '1' then
+            if(r_max_load = '1') then
+                 o_r_max <= o_r_currpixel;
+            end if;
+        end if;
+    end process;
+    
+    process(i_clk, i_rst)
+    begin
+        if(i_rst = '1') then
+            o_r_min <= (others => '0');
+        elsif i_clk'event and i_clk = '1' then
+            if(r_min_load = '1') then
+                 o_r_min <= o_r_currpixel;
+            end if;
+        end if;
+    end process;
+    
+    process(i_clk, i_rst)
+    begin
+        if(i_rst = '1') then
+            o_r_currpixel <= (others => '0');
+        elsif i_clk'event and i_clk = '1' then
+            if(r_min_load = '1') then
+                 o_r_currpixel <= i_data;
+            end if;
+        end if;
+    end process;
+    
+    delta_value <= std_logic_vector(unsigned(o_r_max) + unsigned(o_r_min) + 1); 
+    
+    process(delta_value)
+    begin
+        if delta_value < "00000001" then
+            log2 <= "0000";
+        elsif delta_value < "00000010" then
+            log2 <= "0001";
+        elsif delta_value < "00000100" then
+            log2 <= "0010";
+        elsif delta_value < "00001000" then
+            log2 <= "0011";
+        elsif delta_value < "00010000" then
+            log2 <= "0100";
+        elsif delta_value < "00100000" then
+            log2 <= "0101";
+        elsif delta_value < "01000000" then
+            log2 <= "0110";
+        elsif delta_value < "10000000" then
+            log2 <= "0111";
+        else
+            log2 <= "1000";
+        end if;
+    end process;
+
+    shift_level <= std_logic_vector(8 - unsigned(log2)); 
+    
+    temp_pixel <= std_logic_vector(unsigned(shift_level) * (unsigned(o_r_currpixel) - unsigned(o_r_min))); 
+    
+    process(temp_pixel)
+        begin
+            if temp_pixel < "11111111" then
+                new_pixel_value <= temp_pixel;
+            else
+                new_pixel_value <= "11111111";
+            end if;
+    end process;
+    
+    
+    process(i_clk, i_rst)
+    begin
+        if(i_rst = '1') then
+            o_r_newpixel <= "00000000";
+        elsif i_clk'event and i_clk = '1' then
+            if(r_newpixel_load = '1') then
+                o_r_newpixel <= new_pixel_value;
+            end if;
+        end if;
+    end process;
+
+    o_newpixel <= o_r_newpixel;
+    
+    process(o_r_currpixel, o_r_min)
+        begin
+            if o_r_currpixel < o_r_min then
+                o_smallerthanmin <= '1';
+            else
+                o_smallerthanmin <= '0';
+            end if;
+    end process;
+    
+    process(o_r_currpixel, o_r_max)
+        begin
+            if o_r_currpixel > o_r_max then
+                o_greaterthanmax <= '1';
+            else
+                o_greaterthanmax <= '0';
+            end if;
+    end process;
 
 end Behavioral;
