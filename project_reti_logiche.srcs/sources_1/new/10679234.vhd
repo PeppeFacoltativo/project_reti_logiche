@@ -66,7 +66,7 @@ component datapath is
            o_endcount : out STD_LOGIC;
            o_greaterthanmax : out STD_LOGIC;
            o_smallerthanmin : out STD_LOGIC;
-           o_newpixel : STD_LOGIC_VECTOR(7 downto 0));
+           o_newpixel : out STD_LOGIC_VECTOR(7 downto 0));
 end component;
 
 signal reset_datapath : STD_LOGIC;
@@ -85,7 +85,7 @@ signal o_endcount : STD_LOGIC;
 signal o_greaterthanmax : STD_LOGIC;
 signal o_smallerthanmin : STD_LOGIC;
 signal o_addr : STD_LOGIC_VECTOR(15 downto 0);
-signal o_newpixel : STD_LOGIC_VECTOR(15 downto 0);
+signal o_newpixel : STD_LOGIC_VECTOR(7 downto 0);
 
 type S is (S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15);
 signal cur_state, next_state : S;
@@ -181,6 +181,7 @@ begin
                 end if;
             when S14 =>
                 next_state <= S0;
+            when others =>
         end case;
     end process;
     
@@ -255,6 +256,7 @@ begin
                 o_done <= '0';
                 ctrl1 <= '1';
                 dummy_reset <= '1';
+            when others =>
         end case;
     end process;
     
@@ -295,8 +297,8 @@ end datapath;
 architecture Behavioral of datapath is
 signal o_r_max : STD_LOGIC_VECTOR (7 downto 0);
 signal o_r_min : STD_LOGIC_VECTOR (7 downto 0);
-signal o_r_ncols : STD_LOGIC_VECTOR (6 downto 0);
-signal o_r_nrows : STD_LOGIC_VECTOR (6 downto 0);
+signal o_r_ncols : STD_LOGIC_VECTOR (7 downto 0);
+signal o_r_nrows : STD_LOGIC_VECTOR (7 downto 0);
 signal o_r_ncells : STD_LOGIC_VECTOR (13 downto 0);
 signal o_r_currpixel : STD_LOGIC_VECTOR (7 downto 0);
 signal o_r_newpixel : STD_LOGIC_VECTOR (7 downto 0);
@@ -307,7 +309,7 @@ signal shift_level : STD_LOGIC_VECTOR(2 downto 0);
 signal delta_value : STD_LOGIC_VECTOR(7 downto 0);
 signal temp_pixel : STD_LOGIC_VECTOR(10 downto 0);
 signal new_pixel_value : STD_LOGIC_VECTOR(7 downto 0);
-signal log2 : STD_LOGIC_VECTOR(3 downto 0);
+signal log2 : STD_LOGIC_VECTOR(2 downto 0);
 signal mux2 : STD_LOGIC_VECTOR(13 downto 0);
 signal address_read : STD_LOGIC_VECTOR(15 downto 0);
 signal address_write : STD_LOGIC_VECTOR(15 downto 0);
@@ -366,12 +368,12 @@ begin
     with ctrl1 select
         mux2 <= (others => '0') when '0',
                  newcounter when '1',
-                "XXXXXXXXXXXXXXXX" when others;
+                "XXXXXXXXXXXXXX" when others;
            
     with ctrl2 select
         o_addr <= address_read when '0',
                   address_write when '1',
-                  "XXXXXXXXXXXXXXXX" when others;       
+                 "XXXXXXXXXXXXXXXX" when others;       
                       
     address_read <= std_logic_vector((unsigned(o_r_counter)) + 2); --verifica num bit
     address_write <= std_logic_vector(((unsigned(o_r_ncells)) + unsigned(address_read))); --verifica num bit
@@ -443,7 +445,7 @@ begin
     process(temp_pixel)
         begin
             if unsigned(temp_pixel) < 255 then
-                new_pixel_value <= temp_pixel;
+                new_pixel_value <= temp_pixel(7 downto 0);
             else
                 new_pixel_value <= (others => '1');
             end if;
