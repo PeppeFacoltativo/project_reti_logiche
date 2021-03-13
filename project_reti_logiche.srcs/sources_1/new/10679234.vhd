@@ -87,7 +87,7 @@ signal o_smallerthanmin : STD_LOGIC;
 signal o_addr : STD_LOGIC_VECTOR(15 downto 0);
 signal o_newpixel : STD_LOGIC_VECTOR(7 downto 0);
 
-type S is (S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15);
+type S is (S0,S1,S2,S2a,S2b,S3,S3a,S3z,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15);
 signal cur_state, next_state : S;
 
 begin
@@ -132,13 +132,19 @@ begin
             when S1 =>
                 next_state <= S2;
             when S2 =>
+                next_state <= S2a;
+            when S2a =>
+                next_state <= S2b;
+            when S2b =>
                 next_state <= S3;
             when S3 =>
                 if o_endcount = '1' then
-                    next_state <= S8;
+                    next_state <= S3z;
                 else
-                    next_state <= S3;
+                    next_state <= S3a;
                 end if;
+            when S3a =>
+                next_state <= S4;
             when S4 =>
                 if o_greaterthanmax = '0' and o_smallerthanmin = '0' then -- CurrentPX minore del Max e maggiore del Min
                     next_state <= S7;
@@ -157,6 +163,8 @@ begin
                 next_state <= S7;
             when S7 =>
                 next_state <= S3;
+            when S3z =>
+                next_state <= S8;
             when S8 =>
                 if o_endcount = '1' then
                     next_state <= S13;
@@ -185,7 +193,7 @@ begin
         end case;
     end process;
     
-    process(cur_state)
+    process(cur_state, o_newpixel)
     begin
         r_max_load <= '0';
         r_min_load <= '0';
@@ -197,55 +205,61 @@ begin
         r_counter_load <= '0';
         ctrl1 <= '0';
         ctrl2 <= '0';
-        o_address <= (others => '0');
+        --o_address <= (others => '0');
         o_en <= '0';
         o_we <= '0';
         o_done <= '0';
-        o_data <= (others => '0');
+        --o_data <= (others => '0');
         dummy_reset <= '0';
         case cur_state is
             when S0 => -- waiting for input
-            when S1 => -- load columns
+            when S1 => -- read columns
                 o_address <= "0000000000000000";
                 o_en <= '1';
                 o_we <= '0';
+                --r_ncols_load <= '1';
+            when S2 => -- load columns and read rows
                 r_ncols_load <= '1';
-            when S2 => -- load rows
                 o_address <= "0000000000000001";
                 o_en <= '1';
                 o_we <= '0';
+            when S2a =>-- load rows
                 r_nrows_load <= '1';
-            when S3 => -- calculate num of cells
+            when S2b =>-- load rows
                 r_ncells_load <= '1';
-            when S4 => -- find max and min
-                r_currpixel_load <= '1';
+            when S3 => 
+                ctrl2 <= '0';
                 o_address <= o_addr;
                 o_en <= '1';
                 o_we <= '0';
+            when S3a =>-- load current pixel and counter ++
+                r_currpixel_load <= '1';
+                r_counter_load <= '1';
+                ctrl1 <= '1';
+            when S4 => -- decision
             when S5 => -- min found
                 r_min_load <= '1';
             when S6 => -- max found
                 r_max_load <= '1';
-            when S7 => -- counter++
-                r_counter_load <= '1';
-                ctrl1 <= '1';
-            when S8 => -- reset counter
+            when S7 => -- 
+            when s3z =>  -- reset counter
                 r_counter_load <= '1';
                 ctrl1 <= '0';
+            when S8 =>
             when S9 => -- start equalization
                 r_counter_load <= '0';
-                r_currpixel_load <= '1';
                 ctrl2 <= '0';
                 o_address <= o_addr;
                 o_en <= '1';
                 o_we <= '0';
             when S10 => -- load on register_newpixel
+                r_currpixel_load <= '1';
                 r_newpixel_load <= '1';
             when S11 => -- write equalized pixel
                 ctrl1 <= '1';
                 ctrl2 <= '1';
                 r_counter_load <= '1';
-                --o_address <= o_addr;
+                o_address <= o_addr;
                 o_data <= o_newpixel;
                 o_en <= '1';
                 o_we <= '1';
@@ -299,18 +313,18 @@ signal o_r_max : STD_LOGIC_VECTOR (7 downto 0);
 signal o_r_min : STD_LOGIC_VECTOR (7 downto 0);
 signal o_r_ncols : STD_LOGIC_VECTOR (7 downto 0);
 signal o_r_nrows : STD_LOGIC_VECTOR (7 downto 0);
-signal o_r_ncells : STD_LOGIC_VECTOR (13 downto 0);
+signal o_r_ncells : STD_LOGIC_VECTOR (15 downto 0);
 signal o_r_currpixel : STD_LOGIC_VECTOR (7 downto 0);
 signal o_r_newpixel : STD_LOGIC_VECTOR (7 downto 0);
-signal o_r_counter : STD_LOGIC_VECTOR (13 downto 0);
-signal rowsxcols : STD_LOGIC_VECTOR (13 downto 0);
-signal newcounter : STD_LOGIC_VECTOR (13 downto 0);
+signal o_r_counter : STD_LOGIC_VECTOR (15 downto 0);
+signal rowsxcols : STD_LOGIC_VECTOR (15 downto 0);
+signal newcounter : STD_LOGIC_VECTOR (15 downto 0);
 signal shift_level : STD_LOGIC_VECTOR(2 downto 0);
 signal delta_value : STD_LOGIC_VECTOR(7 downto 0);
 signal temp_pixel : STD_LOGIC_VECTOR(10 downto 0);
 signal new_pixel_value : STD_LOGIC_VECTOR(7 downto 0);
 signal log2 : STD_LOGIC_VECTOR(2 downto 0);
-signal mux2 : STD_LOGIC_VECTOR(13 downto 0);
+signal mux2 : STD_LOGIC_VECTOR(15 downto 0);
 signal address_read : STD_LOGIC_VECTOR(15 downto 0);
 signal address_write : STD_LOGIC_VECTOR(15 downto 0);
 
@@ -334,7 +348,7 @@ begin
             o_r_nrows <= (others => '0');
         elsif i_clk'event and i_clk = '1' then
             if(r_nrows_load = '1') then
-                 o_r_ncols <= i_data;
+                 o_r_nrows <= i_data;
             end if;
         end if;
     end process;
@@ -358,7 +372,7 @@ begin
             o_r_counter <= (others => '0');
         elsif i_clk'event and i_clk = '1' then
             if(r_counter_load = '1') then
-                 o_r_ncells <= mux2;
+                 o_r_counter <= mux2;
             end if;
         end if;
     end process;
@@ -368,7 +382,7 @@ begin
     with ctrl1 select
         mux2 <= (others => '0') when '0',
                  newcounter when '1',
-                "XXXXXXXXXXXXXX" when others;
+                "XXXXXXXXXXXXXXXX" when others;
            
     with ctrl2 select
         o_addr <= address_read when '0',
@@ -378,7 +392,7 @@ begin
     address_read <= std_logic_vector((unsigned(o_r_counter)) + 2); --verifica num bit
     address_write <= std_logic_vector(((unsigned(o_r_ncells)) + unsigned(address_read))); --verifica num bit
     
-    o_endcount <= '1' when (o_r_counter >= o_r_ncells) else '0'; 
+    o_endcount <= '1' when (unsigned(o_r_counter) >= unsigned(o_r_ncells)) else '0'; 
     
     --Parte 2
     
@@ -396,7 +410,7 @@ begin
     process(i_clk, i_rst)
     begin
         if(i_rst = '1') then
-            o_r_min <= (others => '0');
+            o_r_min <= (others => '1');
         elsif i_clk'event and i_clk = '1' then
             if(r_min_load = '1') then
                  o_r_min <= o_r_currpixel;
@@ -409,7 +423,7 @@ begin
         if(i_rst = '1') then
             o_r_currpixel <= (others => '0');
         elsif i_clk'event and i_clk = '1' then
-            if(r_min_load = '1') then
+            if(r_currpixel_load = '1') then
                  o_r_currpixel <= i_data;
             end if;
         end if;
@@ -467,6 +481,8 @@ begin
     
     process(o_r_currpixel, o_r_min)
         begin
+            --if unsigned(o_r_counter) = 1 then --il primo pixel viene posto come minimo
+            --    o_smallerthanmin <= '1';
             if unsigned(o_r_currpixel) < unsigned(o_r_min) then
                 o_smallerthanmin <= '1';
             else
