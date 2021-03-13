@@ -245,7 +245,7 @@ begin
                 ctrl1 <= '1';
                 ctrl2 <= '1';
                 r_counter_load <= '1';
-                o_address <= o_addr;
+                --o_address <= o_addr;
                 o_data <= o_newpixel;
                 o_en <= '1';
                 o_we <= '1';
