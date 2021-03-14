@@ -87,7 +87,7 @@ signal o_smallerthanmin : STD_LOGIC;
 signal o_addr : STD_LOGIC_VECTOR(15 downto 0);
 signal o_newpixel : STD_LOGIC_VECTOR(7 downto 0);
 
-type S is (S0,S1,S2,S2a,S2b,S3,S3a,S3z,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15);
+type S is (S0,S1,S2,S2a,S2b,S3,S3a,S3z,S4,S5,S6,S7,S8,S9,S9a,S10,S11,S12,S13,S14,S15);
 signal cur_state, next_state : S;
 
 begin
@@ -172,6 +172,8 @@ begin
                     next_state <= S9;
                 end if;
             when S9 =>
+                next_state <= S9a;
+            when S9a =>
                 next_state <= S10;
             when S10 =>
                 next_state <= S11;
@@ -205,7 +207,7 @@ begin
         r_counter_load <= '0';
         ctrl1 <= '0';
         ctrl2 <= '0';
-        --o_address <= (others => '0');
+        o_address <= (others => '0');
         o_en <= '0';
         o_we <= '0';
         o_done <= '0';
@@ -247,14 +249,16 @@ begin
                 ctrl1 <= '0';
             when S8 =>
             when S9 => -- start equalization
-                r_counter_load <= '0';
+                --r_counter_load <= '0';
                 ctrl2 <= '0';
                 o_address <= o_addr;
                 o_en <= '1';
                 o_we <= '0';
-            when S10 => -- load on register_newpixel
+            when S9a =>
                 r_currpixel_load <= '1';
+            when S10 => -- load on register_newpixel
                 r_newpixel_load <= '1';
+                ctrl2 <= '1'; --serve
             when S11 => -- write equalized pixel
                 ctrl1 <= '1';
                 ctrl2 <= '1';
@@ -321,7 +325,8 @@ signal rowsxcols : STD_LOGIC_VECTOR (15 downto 0);
 signal newcounter : STD_LOGIC_VECTOR (15 downto 0);
 signal shift_level : STD_LOGIC_VECTOR(2 downto 0);
 signal delta_value : STD_LOGIC_VECTOR(7 downto 0);
-signal temp_pixel : STD_LOGIC_VECTOR(10 downto 0);
+signal diff : STD_LOGIC_VECTOR(7 downto 0);
+signal temp_pixel : STD_LOGIC_VECTOR(15 downto 0);
 signal new_pixel_value : STD_LOGIC_VECTOR(7 downto 0);
 signal log2 : STD_LOGIC_VECTOR(2 downto 0);
 signal mux2 : STD_LOGIC_VECTOR(15 downto 0);
@@ -453,9 +458,10 @@ begin
     end process;
 
     shift_level <= std_logic_vector(8 - unsigned(log2)); 
+    diff <= std_logic_vector(unsigned(o_r_currpixel) - unsigned(o_r_min));
     
-    temp_pixel <= std_logic_vector(unsigned(shift_level) * (unsigned(o_r_currpixel) - unsigned(o_r_min))); 
-    
+    temp_pixel <= std_logic_vector(unsigned(diff) * 4); --provvisorio
+
     process(temp_pixel)
         begin
             if unsigned(temp_pixel) < 255 then
