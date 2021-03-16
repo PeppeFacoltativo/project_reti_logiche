@@ -323,7 +323,7 @@ signal o_r_newpixel : STD_LOGIC_VECTOR (7 downto 0);
 signal o_r_counter : STD_LOGIC_VECTOR (15 downto 0);
 signal rowsxcols : STD_LOGIC_VECTOR (15 downto 0);
 signal newcounter : STD_LOGIC_VECTOR (15 downto 0);
-signal shift_level : STD_LOGIC_VECTOR(2 downto 0);
+signal shift_level : UNSIGNED(2 downto 0);
 signal delta_value : STD_LOGIC_VECTOR(7 downto 0);
 signal diff : STD_LOGIC_VECTOR(7 downto 0);
 signal temp_pixel : STD_LOGIC_VECTOR(15 downto 0);
@@ -457,15 +457,15 @@ begin
         end if;
     end process;
 
-    shift_level <= std_logic_vector(8 - unsigned(log2)); 
+    shift_level <= 8 - unsigned(log2); 
     diff <= std_logic_vector(unsigned(o_r_currpixel) - unsigned(o_r_min));
     
-    temp_pixel <= std_logic_vector(unsigned(diff) * 4); --provvisorio
+    temp_pixel <= std_logic_vector(shift_left(unsigned("00000000" & diff), TO_INTEGER(unsigned(shift_level)))); --provvisorio  
 
     process(temp_pixel)
         begin
             if unsigned(temp_pixel) < 255 then
-                new_pixel_value <= temp_pixel(7 downto 0);
+                new_pixel_value <= std_logic_vector(temp_pixel(7 downto 0));
             else
                 new_pixel_value <= (others => '1');
             end if;
