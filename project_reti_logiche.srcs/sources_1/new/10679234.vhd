@@ -195,7 +195,7 @@ begin
         end case;
     end process;
     
-    process(cur_state, o_newpixel)
+    process(cur_state, o_newpixel, o_addr)
     begin
         r_max_load <= '0';
         r_min_load <= '0';
@@ -211,7 +211,7 @@ begin
         o_en <= '0';
         o_we <= '0';
         o_done <= '0';
-        --o_data <= (others => '0');
+        o_data <= (others => '0');
         dummy_reset <= '0';
         case cur_state is
             when S0 => -- waiting for input
