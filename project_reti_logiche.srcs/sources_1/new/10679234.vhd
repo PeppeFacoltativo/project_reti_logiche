@@ -52,7 +52,6 @@ component datapath is
     Port ( i_clk : in std_logic;
            i_rst : in std_logic;
            i_data : in std_logic_vector(7 downto 0);
-           o_addr : out std_logic_vector(15 downto 0);
            r_max_load : in STD_LOGIC;
            r_min_load : in STD_LOGIC;
            r_ncols_load : in STD_LOGIC;
@@ -66,7 +65,8 @@ component datapath is
            o_endcount : out STD_LOGIC;
            o_greaterthanmax : out STD_LOGIC;
            o_smallerthanmin : out STD_LOGIC;
-           o_newpixel : out STD_LOGIC_VECTOR(7 downto 0));
+           o_newpixel : out STD_LOGIC_VECTOR(7 downto 0);
+           o_addr : out std_logic_vector(15 downto 0));
 end component;
 
 signal reset_datapath : STD_LOGIC;
@@ -81,13 +81,13 @@ signal r_newpixel_load : STD_LOGIC;
 signal r_counter_load : STD_LOGIC;
 signal ctrl1 : STD_LOGIC;
 signal ctrl2 : STD_LOGIC;
-signal o_endcount : STD_LOGIC;
-signal o_greaterthanmax : STD_LOGIC;
-signal o_smallerthanmin : STD_LOGIC;
+signal endcount : STD_LOGIC;
+signal greaterthanmax : STD_LOGIC;
+signal smallerthanmin : STD_LOGIC;
 signal o_addr : STD_LOGIC_VECTOR(15 downto 0);
 signal o_newpixel : STD_LOGIC_VECTOR(7 downto 0);
 
-type S is (S0,S1,S2,S2a,S2b,S3,S3a,S3z,S4,S5,S6,S7,S8,S9,S9a,S10,S11,S12,S13,S14,S15);
+type S is (S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18,S19);
 signal cur_state, next_state : S;
 
 begin
@@ -95,7 +95,6 @@ begin
         i_clk => i_clk,
         i_rst => reset_datapath,
         i_data => i_data,
-        o_addr => o_addr,
         r_max_load => r_max_load,
         r_min_load => r_min_load,
         r_ncols_load => r_ncols_load,
@@ -106,22 +105,23 @@ begin
         r_counter_load => r_counter_load,
         ctrl1 => ctrl1,
         ctrl2 => ctrl2,
-        o_endcount => o_endcount,
-        o_greaterthanmax => o_greaterthanmax,
-        o_smallerthanmin => o_smallerthanmin,
-        o_newpixel => o_newpixel
+        o_endcount => endcount,
+        o_greaterthanmax => greaterthanmax,
+        o_smallerthanmin => smallerthanmin,
+        o_newpixel => o_newpixel,
+        o_addr => o_addr
     );
     
     process(i_clk, i_rst)
     begin
         if(i_rst = '1') then
             cur_state <= S0;
-        elsif i_clk'event and i_clk = '1' then
+        elsif rising_edge(i_clk) then
             cur_state <= next_state;
         end if;
     end process;
     
-    process(cur_state, i_start, o_endcount, o_greaterthanmax, o_smallerthanmin)
+    process(cur_state, i_start, endcount, greaterthanmax, smallerthanmin)
     begin
         next_state <= cur_state;
         case cur_state is
@@ -132,64 +132,64 @@ begin
             when S1 =>
                 next_state <= S2;
             when S2 =>
-                next_state <= S2a;
-            when S2a =>
-                next_state <= S2b;
-            when S2b =>
                 next_state <= S3;
             when S3 =>
-                if o_endcount = '1' then
-                    next_state <= S3z;
-                else
-                    next_state <= S3a;
-                end if;
-            when S3a =>
                 next_state <= S4;
             when S4 =>
-                if o_greaterthanmax = '0' and o_smallerthanmin = '0' then -- CurrentPX minore del Max e maggiore del Min
-                    next_state <= S7;
-                elsif o_greaterthanmax = '1' and o_smallerthanmin = '0' then -- CurrentPX maggiore del max e maggiore del Min
-                    next_state <= S6;
-                else -- CurrentPX minore del Min
-                    next_state <= S5;
-                end if;
+                next_state <= S5;
             when S5 =>
-                if o_greaterthanmax = '1' then
+                if endcount = '1' then
+                    next_state <= S11;
+                else
                     next_state <= S6;
-                else 
-                    next_state <= S7;
                 end if;
             when S6 =>
                 next_state <= S7;
             when S7 =>
-                next_state <= S3;
-            when S3z =>
-                next_state <= S8;
-            when S8 =>
-                if o_endcount = '1' then
-                    next_state <= S13;
-                else
+                if greaterthanmax = '0' and smallerthanmin = '0' then -- CurrentPX minore del Max e maggiore del Min
+                    next_state <= S10;
+                elsif greaterthanmax = '1' and smallerthanmin = '0' then -- CurrentPX maggiore del max e maggiore del Min
                     next_state <= S9;
+                else -- CurrentPX minore del Min
+                    next_state <= S8;
+                end if;
+            when S8 =>
+                if greaterthanmax = '1' then
+                    next_state <= S9;
+                else 
+                    next_state <= S10;
                 end if;
             when S9 =>
-                next_state <= S9a;
-            when S9a =>
                 next_state <= S10;
             when S10 =>
-                next_state <= S11;
+                next_state <= S5;
             when S11 =>
                 next_state <= S12;
             when S12 =>
-            if o_endcount = '1' then
-                next_state <= S13;
-            else 
-                next_state <= S9;
-            end if;
-            when S13 =>
-                if i_start = '0' then
-                    next_state <= S14;
+                if endcount = '1' then
+                    next_state <= S18;
+                else
+                    next_state <= S13;
                 end if;
+            when S13 =>
+                next_state <= S14;
             when S14 =>
+                next_state <= S15;
+            when S15 =>
+                next_state <= S16;
+            when S16 =>
+                next_state <= S17;
+            when S17 =>
+            if endcount = '1' then
+                next_state <= S18;
+            else 
+                next_state <= S13;
+            end if;
+            when S18 =>
+                if i_start = '0' then
+                    next_state <= S19;
+                end if;
+            when S19 =>
                 next_state <= S0;
             when others =>
         end case;
@@ -225,41 +225,41 @@ begin
                 o_address <= "0000000000000001";
                 o_en <= '1';
                 o_we <= '0';
-            when S2a =>-- load rows
+            when S3 =>-- load rows
                 r_nrows_load <= '1';
-            when S2b =>-- load rows
+            when S4 =>-- load rows
                 r_ncells_load <= '1';
-            when S3 => 
+            when S5 => 
                 ctrl2 <= '0';
                 o_address <= o_addr;
                 o_en <= '1';
                 o_we <= '0';
-            when S3a =>-- load current pixel and counter ++
+            when S6 =>-- load current pixel and counter ++
                 r_currpixel_load <= '1';
                 r_counter_load <= '1';
                 ctrl1 <= '1';
-            when S4 => -- decision
-            when S5 => -- min found
+            when S7 => -- decision
+            when S8 => -- min found
                 r_min_load <= '1';
-            when S6 => -- max found
+            when S9 => -- max found
                 r_max_load <= '1';
-            when S7 => -- 
-            when s3z =>  -- reset counter
+            when S10 => -- 
+            when S11 =>  -- reset counter
                 r_counter_load <= '1';
                 ctrl1 <= '0';
-            when S8 =>
-            when S9 => -- start equalization
+            when S12 =>
+            when S13 => -- start equalization
                 --r_counter_load <= '0';
                 ctrl2 <= '0';
                 o_address <= o_addr;
                 o_en <= '1';
                 o_we <= '0';
-            when S9a =>
+            when S14 =>
                 r_currpixel_load <= '1';
-            when S10 => -- load on register_newpixel
+            when S15 => -- load on register_newpixel
                 r_newpixel_load <= '1';
                 ctrl2 <= '1'; --serve
-            when S11 => -- write equalized pixel
+            when S16 => -- write equalized pixel
                 ctrl1 <= '1';
                 ctrl2 <= '1';
                 r_counter_load <= '1';
@@ -267,10 +267,10 @@ begin
                 o_data <= o_newpixel;
                 o_en <= '1';
                 o_we <= '1';
-            when S12 => -- waiting for counter update
-            when S13 => -- waiting for new start
+            when S17 => -- waiting for counter update
+            when S18 => -- waiting for new start
                 o_done <= '1';
-            when S14 => -- reset for new input
+            when S19 => -- reset for new input
                 o_done <= '0';
                 ctrl1 <= '1';
                 dummy_reset <= '1';
@@ -295,7 +295,6 @@ entity datapath is
     Port ( i_clk : in std_logic;
            i_rst : in std_logic;
            i_data : in std_logic_vector(7 downto 0);
-           o_addr : out std_logic_vector(15 downto 0);
            r_max_load : in STD_LOGIC;
            r_min_load : in STD_LOGIC;
            r_ncols_load : in STD_LOGIC;
@@ -309,7 +308,8 @@ entity datapath is
            o_endcount : out STD_LOGIC;
            o_greaterthanmax : out STD_LOGIC;
            o_smallerthanmin : out STD_LOGIC;
-           o_newpixel : out std_logic_vector(7 downto 0));
+           o_newpixel : out std_logic_vector(7 downto 0);
+           o_addr : out std_logic_vector(15 downto 0));
 end datapath;
 
 architecture Behavioral of datapath is
@@ -340,7 +340,7 @@ begin
     begin
         if(i_rst = '1') then
             o_r_ncols <= (others => '0');
-        elsif i_clk'event and i_clk = '1' then
+        elsif rising_edge(i_clk) then
             if(r_ncols_load = '1') then
                  o_r_ncols <= i_data;
             end if;
@@ -351,7 +351,7 @@ begin
     begin
         if(i_rst = '1') then
             o_r_nrows <= (others => '0');
-        elsif i_clk'event and i_clk = '1' then
+        elsif rising_edge(i_clk) then
             if(r_nrows_load = '1') then
                  o_r_nrows <= i_data;
             end if;
@@ -364,7 +364,7 @@ begin
     begin
         if(i_rst = '1') then
             o_r_ncells <= (others => '0');
-        elsif i_clk'event and i_clk = '1' then
+        elsif rising_edge(i_clk) then
             if(r_ncells_load = '1') then
                  o_r_ncells <= rowsxcols;
             end if;
@@ -375,7 +375,7 @@ begin
     begin
         if(i_rst = '1') then
             o_r_counter <= (others => '0');
-        elsif i_clk'event and i_clk = '1' then
+        elsif rising_edge(i_clk) then
             if(r_counter_load = '1') then
                  o_r_counter <= mux2;
             end if;
@@ -405,7 +405,7 @@ begin
     begin
         if(i_rst = '1') then
             o_r_max <= (others => '0');
-        elsif i_clk'event and i_clk = '1' then
+        elsif rising_edge(i_clk) then
             if(r_max_load = '1') then
                  o_r_max <= o_r_currpixel;
             end if;
@@ -416,7 +416,7 @@ begin
     begin
         if(i_rst = '1') then
             o_r_min <= (others => '1');
-        elsif i_clk'event and i_clk = '1' then
+        elsif rising_edge(i_clk) then
             if(r_min_load = '1') then
                  o_r_min <= o_r_currpixel;
             end if;
@@ -427,7 +427,7 @@ begin
     begin
         if(i_rst = '1') then
             o_r_currpixel <= (others => '0');
-        elsif i_clk'event and i_clk = '1' then
+        elsif rising_edge(i_clk) then
             if(r_currpixel_load = '1') then
                  o_r_currpixel <= i_data;
             end if;
@@ -476,7 +476,7 @@ begin
     begin
         if(i_rst = '1') then
             o_r_newpixel <= (others => '0');
-        elsif i_clk'event and i_clk = '1' then
+        elsif rising_edge(i_clk) then
             if(r_newpixel_load = '1') then
                 o_r_newpixel <= new_pixel_value;
             end if;
