@@ -87,7 +87,7 @@ signal smallerthanmin : STD_LOGIC;
 signal o_addr : STD_LOGIC_VECTOR(15 downto 0);
 signal o_newpixel : STD_LOGIC_VECTOR(7 downto 0);
 
-type S is (S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18,S19);
+type S is (S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18);
 signal cur_state, next_state : S;
 
 begin
@@ -139,7 +139,7 @@ begin
                 next_state <= S5;
             when S5 =>
                 if endcount = '1' then
-                    next_state <= S11;
+                    next_state <= S10;
                 else
                     next_state <= S6;
                 end if;
@@ -147,7 +147,7 @@ begin
                 next_state <= S7;
             when S7 =>
                 if greaterthanmax = '0' and smallerthanmin = '0' then -- CurrentPX minore del Max e maggiore del Min
-                    next_state <= S10;
+                    next_state <= S5;
                 elsif greaterthanmax = '1' and smallerthanmin = '0' then -- CurrentPX maggiore del max e maggiore del Min
                     next_state <= S9;
                 else -- CurrentPX minore del Min
@@ -157,20 +157,20 @@ begin
                 if greaterthanmax = '1' then
                     next_state <= S9;
                 else 
-                    next_state <= S10;
+                    next_state <= S5;
                 end if;
             when S9 =>
-                next_state <= S10;
-            when S10 =>
                 next_state <= S5;
+            when S10 =>
+                next_state <= S11;
             when S11 =>
-                next_state <= S12;
-            when S12 =>
                 if endcount = '1' then
-                    next_state <= S18;
+                    next_state <= S17;
                 else
-                    next_state <= S13;
+                    next_state <= S12;
                 end if;
+            when S12 =>
+                next_state <= S13;
             when S13 =>
                 next_state <= S14;
             when S14 =>
@@ -178,18 +178,18 @@ begin
             when S15 =>
                 next_state <= S16;
             when S16 =>
-                next_state <= S17;
-            when S17 =>
             if endcount = '1' then
-                next_state <= S18;
+                next_state <= S17;
             else 
-                next_state <= S13;
+                next_state <= S12;
             end if;
-            when S18 =>
+            when S17 =>
                 if i_start = '0' then
-                    next_state <= S19;
+                    next_state <= S18;
+                else
+                    next_state <= S17;
                 end if;
-            when S19 =>
+            when S18 =>
                 next_state <= S0;
             when others =>
         end case;
@@ -214,52 +214,49 @@ begin
         o_data <= (others => '0');
         dummy_reset <= '0';
         case cur_state is
-            when S0 => -- waiting for input
+            when S0 => -- waiting for start
             when S1 => -- read columns
                 o_address <= "0000000000000000";
                 o_en <= '1';
                 o_we <= '0';
-                --r_ncols_load <= '1';
             when S2 => -- load columns and read rows
                 r_ncols_load <= '1';
                 o_address <= "0000000000000001";
                 o_en <= '1';
                 o_we <= '0';
-            when S3 =>-- load rows
+            when S3 => -- load rows
                 r_nrows_load <= '1';
-            when S4 =>-- load rows
+            when S4 => -- calculate total num of cells
                 r_ncells_load <= '1';
-            when S5 => 
+            when S5 => -- read current pixel (to find max and min)
                 ctrl2 <= '0';
                 o_address <= o_addr;
                 o_en <= '1';
                 o_we <= '0';
-            when S6 =>-- load current pixel and counter ++
+            when S6 =>-- load current pixel and counter++
                 r_currpixel_load <= '1';
                 r_counter_load <= '1';
                 ctrl1 <= '1';
-            when S7 => -- decision
-            when S8 => -- min found
+            when S7 => -- check if current pixel is smaller than min or greater than max
+            when S8 => -- current pixel < min
                 r_min_load <= '1';
-            when S9 => -- max found
+            when S9 => -- current pixel > min
                 r_max_load <= '1';
-            when S10 => -- 
-            when S11 =>  -- reset counter
+            when S10 =>  -- reset counter
                 r_counter_load <= '1';
                 ctrl1 <= '0';
-            when S12 =>
-            when S13 => -- start equalization
-                --r_counter_load <= '0';
+            when S11 => -- check if all the pixels have been equalized
+            when S12 => -- read current pixel (to equalize)
                 ctrl2 <= '0';
                 o_address <= o_addr;
                 o_en <= '1';
                 o_we <= '0';
-            when S14 =>
+            when S13 => -- load current pixel
                 r_currpixel_load <= '1';
-            when S15 => -- load on register_newpixel
+            when S14 => -- load equalized pixel on register_newpixel
                 r_newpixel_load <= '1';
-                ctrl2 <= '1'; --serve
-            when S16 => -- write equalized pixel
+                ctrl2 <= '1';
+            when S15 => -- write equalized pixel
                 ctrl1 <= '1';
                 ctrl2 <= '1';
                 r_counter_load <= '1';
@@ -267,11 +264,11 @@ begin
                 o_data <= o_newpixel;
                 o_en <= '1';
                 o_we <= '1';
-            when S17 => -- waiting for counter update
-            when S18 => -- waiting for new start
+            when S16 => -- waiting for counter update
+            when S17 => -- waiting for new start signal
                 o_done <= '1';
-            when S19 => -- reset for new input
-                o_done <= '0';
+            when S18 => -- new start signal recived: reset and wait for next image 
+                --o_done <= '0';
                 ctrl1 <= '1';
                 dummy_reset <= '1';
             when others =>
