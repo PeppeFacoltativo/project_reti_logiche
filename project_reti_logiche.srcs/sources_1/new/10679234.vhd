@@ -1,6 +1,6 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Simone Gabrielli
 -- 
 -- Create Date: 01.03.2021 16:14:15
 -- Design Name: 
@@ -84,7 +84,7 @@ signal ctrl2 : STD_LOGIC;
 signal endcount : STD_LOGIC;
 signal greaterthanmax : STD_LOGIC;
 signal smallerthanmin : STD_LOGIC;
-signal o_addr : STD_LOGIC_VECTOR(15 downto 0);
+signal datapath_addr : STD_LOGIC_VECTOR(15 downto 0);
 signal o_newpixel : STD_LOGIC_VECTOR(7 downto 0);
 
 type S is (S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18);
@@ -109,7 +109,7 @@ begin
         o_greaterthanmax => greaterthanmax,
         o_smallerthanmin => smallerthanmin,
         o_newpixel => o_newpixel,
-        o_addr => o_addr
+        o_addr => datapath_addr
     );
     
     process(i_clk, i_rst)
@@ -195,7 +195,7 @@ begin
         end case;
     end process;
     
-    process(cur_state, o_newpixel, o_addr)
+    process(cur_state, datapath_addr, o_newpixel)
     begin
         r_max_load <= '0';
         r_min_load <= '0';
@@ -230,7 +230,7 @@ begin
                 r_ncells_load <= '1';
             when S5 => -- read current pixel (to find max and min)
                 ctrl2 <= '0';
-                o_address <= o_addr;
+                o_address <= datapath_addr;
                 o_en <= '1';
                 o_we <= '0';
             when S6 =>-- load current pixel and counter++
@@ -248,7 +248,7 @@ begin
             when S11 => -- check if all the pixels have been equalized
             when S12 => -- read current pixel (to equalize)
                 ctrl2 <= '0';
-                o_address <= o_addr;
+                o_address <= datapath_addr;
                 o_en <= '1';
                 o_we <= '0';
             when S13 => -- load current pixel
@@ -260,7 +260,7 @@ begin
                 ctrl1 <= '1';
                 ctrl2 <= '1';
                 r_counter_load <= '1';
-                o_address <= o_addr;
+                o_address <= datapath_addr;
                 o_data <= o_newpixel;
                 o_en <= '1';
                 o_we <= '1';
@@ -268,7 +268,6 @@ begin
             when S17 => -- waiting for new start signal
                 o_done <= '1';
             when S18 => -- new start signal recived: reset and wait for next image 
-                --o_done <= '0';
                 ctrl1 <= '1';
                 dummy_reset <= '1';
             when others =>
