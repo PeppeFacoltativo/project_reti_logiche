@@ -48,24 +48,30 @@ end project_reti_logiche;
 
 architecture Behavioral of project_reti_logiche is
 
-component datapath is
+component equalizer is
     Port ( i_clk : in std_logic;
            i_rst : in std_logic;
            i_data : in std_logic_vector(7 downto 0);
            r_max_load : in STD_LOGIC;
            r_min_load : in STD_LOGIC;
+           r_currpixel_load : in STD_LOGIC;
+           r_newpixel_load : in STD_LOGIC;
+           o_greaterthanmax : out STD_LOGIC;
+           o_smallerthanmin : out STD_LOGIC;
+           o_newpixel : out std_logic_vector(7 downto 0));
+end component;
+
+component address_calculator is
+    Port ( i_clk : in std_logic;
+           i_rst : in std_logic;
+           i_data : in std_logic_vector(7 downto 0);
            r_ncols_load : in STD_LOGIC;
            r_nrows_load : in STD_LOGIC;
            r_ncells_load : in STD_LOGIC;
-           r_currpixel_load : in STD_LOGIC;
-           r_newpixel_load : in STD_LOGIC;
            r_counter_load : in STD_LOGIC;
            ctrl1 : in STD_LOGIC;
            ctrl2 : in STD_LOGIC;
            o_endcount : out STD_LOGIC;
-           o_greaterthanmax : out STD_LOGIC;
-           o_smallerthanmin : out STD_LOGIC;
-           o_newpixel : out STD_LOGIC_VECTOR(7 downto 0);
            o_addr : out std_logic_vector(15 downto 0));
 end component;
 
@@ -91,24 +97,30 @@ type S is (S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18);
 signal cur_state, next_state : S;
 
 begin
-    DATAPATH0 : datapath port map(
+    equalizer0 : equalizer port map(
         i_clk => i_clk,
         i_rst => reset_datapath,
         i_data => i_data,
         r_max_load => r_max_load,
         r_min_load => r_min_load,
+        r_currpixel_load => r_currpixel_load,
+        r_newpixel_load => r_newpixel_load,
+        o_greaterthanmax => greaterthanmax,
+        o_smallerthanmin => smallerthanmin,
+        o_newpixel => o_newpixel
+    );
+    
+    address_calculator0 : address_calculator port map(
+        i_clk => i_clk,
+        i_rst => reset_datapath,
+        i_data => i_data,
         r_ncols_load => r_ncols_load,
         r_nrows_load => r_nrows_load,
         r_ncells_load => r_ncells_load,
-        r_currpixel_load => r_currpixel_load,
-        r_newpixel_load => r_newpixel_load,
         r_counter_load => r_counter_load,
         ctrl1 => ctrl1,
         ctrl2 => ctrl2,
         o_endcount => endcount,
-        o_greaterthanmax => greaterthanmax,
-        o_smallerthanmin => smallerthanmin,
-        o_newpixel => o_newpixel,
         o_addr => datapath_addr
     );
     
@@ -279,7 +291,7 @@ begin
 end Behavioral;
 
 
--- DATAPATH
+-- equalizer
 
 
 library IEEE;
@@ -287,115 +299,34 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 
-entity datapath is
+entity equalizer is
     Port ( i_clk : in std_logic;
            i_rst : in std_logic;
            i_data : in std_logic_vector(7 downto 0);
            r_max_load : in STD_LOGIC;
            r_min_load : in STD_LOGIC;
-           r_ncols_load : in STD_LOGIC;
-           r_nrows_load : in STD_LOGIC;
-           r_ncells_load : in STD_LOGIC;
            r_currpixel_load : in STD_LOGIC;
            r_newpixel_load : in STD_LOGIC;
-           r_counter_load : in STD_LOGIC;
-           ctrl1 : in STD_LOGIC;
-           ctrl2 : in STD_LOGIC;
-           o_endcount : out STD_LOGIC;
            o_greaterthanmax : out STD_LOGIC;
            o_smallerthanmin : out STD_LOGIC;
-           o_newpixel : out std_logic_vector(7 downto 0);
-           o_addr : out std_logic_vector(15 downto 0));
-end datapath;
+           o_newpixel : out std_logic_vector(7 downto 0));
+end equalizer;
 
-architecture Behavioral of datapath is
+
+
+architecture Behavioral of equalizer is
 signal o_r_max : STD_LOGIC_VECTOR (7 downto 0);
 signal o_r_min : STD_LOGIC_VECTOR (7 downto 0);
-signal o_r_ncols : STD_LOGIC_VECTOR (7 downto 0);
-signal o_r_nrows : STD_LOGIC_VECTOR (7 downto 0);
-signal o_r_ncells : STD_LOGIC_VECTOR (15 downto 0);
 signal o_r_currpixel : STD_LOGIC_VECTOR (7 downto 0);
 signal o_r_newpixel : STD_LOGIC_VECTOR (7 downto 0);
-signal o_r_counter : STD_LOGIC_VECTOR (15 downto 0);
-signal rowsxcols : STD_LOGIC_VECTOR (15 downto 0);
-signal newcounter : STD_LOGIC_VECTOR (15 downto 0);
 signal shift_level : UNSIGNED(2 downto 0);
 signal delta_value : STD_LOGIC_VECTOR(7 downto 0);
 signal diff : STD_LOGIC_VECTOR(7 downto 0);
 signal temp_pixel : STD_LOGIC_VECTOR(15 downto 0);
 signal new_pixel_value : STD_LOGIC_VECTOR(7 downto 0);
 signal log2 : STD_LOGIC_VECTOR(2 downto 0);
-signal mux2 : STD_LOGIC_VECTOR(15 downto 0);
-signal address_read : STD_LOGIC_VECTOR(15 downto 0);
-signal address_write : STD_LOGIC_VECTOR(15 downto 0);
-
---Parte 1
 
 begin    
-    process(i_clk, i_rst)
-    begin
-        if(i_rst = '1') then
-            o_r_ncols <= (others => '0');
-        elsif rising_edge(i_clk) then
-            if(r_ncols_load = '1') then
-                 o_r_ncols <= i_data;
-            end if;
-        end if;
-    end process;
-    
-    process(i_clk, i_rst)
-    begin
-        if(i_rst = '1') then
-            o_r_nrows <= (others => '0');
-        elsif rising_edge(i_clk) then
-            if(r_nrows_load = '1') then
-                 o_r_nrows <= i_data;
-            end if;
-        end if;
-    end process;
-    
-    rowsxcols <= std_logic_vector(unsigned(o_r_ncols) * unsigned(o_r_nrows));
-    
-    process(i_clk, i_rst)
-    begin
-        if(i_rst = '1') then
-            o_r_ncells <= (others => '0');
-        elsif rising_edge(i_clk) then
-            if(r_ncells_load = '1') then
-                 o_r_ncells <= rowsxcols;
-            end if;
-        end if;
-    end process;
-    
-    process(i_clk, i_rst)
-    begin
-        if(i_rst = '1') then
-            o_r_counter <= (others => '0');
-        elsif rising_edge(i_clk) then
-            if(r_counter_load = '1') then
-                 o_r_counter <= mux2;
-            end if;
-        end if;
-    end process;
-    
-    newcounter <= std_logic_vector(unsigned(o_r_counter) + 1); 
-    
-    with ctrl1 select
-        mux2 <= (others => '0') when '0',
-                 newcounter when '1',
-                "XXXXXXXXXXXXXXXX" when others;
-           
-    with ctrl2 select
-        o_addr <= address_read when '0',
-                  address_write when '1',
-                 "XXXXXXXXXXXXXXXX" when others;       
-                      
-    address_read <= std_logic_vector((unsigned(o_r_counter)) + 2); --verifica num bit
-    address_write <= std_logic_vector(((unsigned(o_r_ncells)) + unsigned(address_read))); --verifica num bit
-    
-    o_endcount <= '1' when (unsigned(o_r_counter) >= unsigned(o_r_ncells)) else '0'; 
-    
-    --Parte 2
     
     process(i_clk, i_rst)
     begin
@@ -501,4 +432,109 @@ begin
             end if;
     end process;
 
+end Behavioral;
+
+
+
+-- address_calculator
+
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+
+
+entity address_calculator is
+    Port ( i_clk : in std_logic;
+           i_rst : in std_logic;
+           i_data : in std_logic_vector(7 downto 0);
+           r_ncols_load : in STD_LOGIC;
+           r_nrows_load : in STD_LOGIC;
+           r_ncells_load : in STD_LOGIC;
+           r_counter_load : in STD_LOGIC;
+           ctrl1 : in STD_LOGIC;
+           ctrl2 : in STD_LOGIC;
+           o_endcount : out STD_LOGIC;
+           o_addr : out std_logic_vector(15 downto 0));
+end address_calculator;
+
+
+architecture Behavioral of address_calculator is
+signal o_r_ncols : STD_LOGIC_VECTOR (7 downto 0);
+signal o_r_nrows : STD_LOGIC_VECTOR (7 downto 0);
+signal o_r_ncells : STD_LOGIC_VECTOR (15 downto 0);
+signal o_r_counter : STD_LOGIC_VECTOR (15 downto 0);
+signal rowsxcols : STD_LOGIC_VECTOR (15 downto 0);
+signal newcounter : STD_LOGIC_VECTOR (15 downto 0);
+signal mux2 : STD_LOGIC_VECTOR(15 downto 0);
+signal address_read : STD_LOGIC_VECTOR(15 downto 0);
+signal address_write : STD_LOGIC_VECTOR(15 downto 0);
+
+--Parte 1
+
+begin    
+    process(i_clk, i_rst)
+    begin
+        if(i_rst = '1') then
+            o_r_ncols <= (others => '0');
+        elsif rising_edge(i_clk) then
+            if(r_ncols_load = '1') then
+                 o_r_ncols <= i_data;
+            end if;
+        end if;
+    end process;
+    
+    process(i_clk, i_rst)
+    begin
+        if(i_rst = '1') then
+            o_r_nrows <= (others => '0');
+        elsif rising_edge(i_clk) then
+            if(r_nrows_load = '1') then
+                 o_r_nrows <= i_data;
+            end if;
+        end if;
+    end process;
+    
+    rowsxcols <= std_logic_vector(unsigned(o_r_ncols) * unsigned(o_r_nrows));
+    
+    process(i_clk, i_rst)
+    begin
+        if(i_rst = '1') then
+            o_r_ncells <= (others => '0');
+        elsif rising_edge(i_clk) then
+            if(r_ncells_load = '1') then
+                 o_r_ncells <= rowsxcols;
+            end if;
+        end if;
+    end process;
+    
+    process(i_clk, i_rst)
+    begin
+        if(i_rst = '1') then
+            o_r_counter <= (others => '0');
+        elsif rising_edge(i_clk) then
+            if(r_counter_load = '1') then
+                 o_r_counter <= mux2;
+            end if;
+        end if;
+    end process;
+    
+    newcounter <= std_logic_vector(unsigned(o_r_counter) + 1); 
+    
+    with ctrl1 select
+        mux2 <= (others => '0') when '0',
+                 newcounter when '1',
+                "XXXXXXXXXXXXXXXX" when others;
+           
+    with ctrl2 select
+        o_addr <= address_read when '0',
+                  address_write when '1',
+                 "XXXXXXXXXXXXXXXX" when others;       
+                      
+    address_read <= std_logic_vector((unsigned(o_r_counter)) + 2); --verifica num bit
+    address_write <= std_logic_vector(((unsigned(o_r_ncells)) + unsigned(address_read))); --verifica num bit
+    
+    o_endcount <= '1' when (unsigned(o_r_counter) >= unsigned(o_r_ncells)) else '0'; 
+    
 end Behavioral;
