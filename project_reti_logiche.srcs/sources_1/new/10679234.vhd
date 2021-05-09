@@ -4,8 +4,8 @@
 -- 
 -- Create Date: 01.03.2021 16:14:15
 -- Design Name: 
--- Module Name: project_reti_logiche - lambda
--- Project Name: 
+-- Module Name: project_reti_logiche
+-- Project Name: project_reti_logiche
 -- Target Devices: 
 -- Tool Versions: 
 -- Description: 
@@ -414,8 +414,6 @@ begin
     
     process(o_r_currpixel, o_r_min)
         begin
-            --if unsigned(o_r_counter) = 1 then --il primo pixel viene posto come minimo
-            --    o_smallerthanmin <= '1';
             if unsigned(o_r_currpixel) < unsigned(o_r_min) then
                 o_smallerthanmin <= '1';
             else
@@ -470,8 +468,6 @@ signal newcounter : STD_LOGIC_VECTOR (15 downto 0);
 signal mux2 : STD_LOGIC_VECTOR(15 downto 0);
 signal address_read : STD_LOGIC_VECTOR(15 downto 0);
 signal address_write : STD_LOGIC_VECTOR(15 downto 0);
-
---Parte 1
 
 begin    
     process(i_clk, i_rst)
