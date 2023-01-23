@@ -2,4 +2,4 @@
 ## Image equalizer in VHDL
 VHDL code for an image equalizer.
 
-[Documentation](https://polimi365-my.sharepoint.com/:b:/g/personal/10679234_polimi_it/ERXJ_QRYNIFFtjIJEbmtJ0IBO-FQmC856dfm-S5qoK-aHQ?e=FXk10s).
+[Documentation](https://github.com/PeppeFacoltativo/project_reti_logiche/blob/master/Documentazione%20progetto%20reti%20logiche%202020-2021.pdf).
